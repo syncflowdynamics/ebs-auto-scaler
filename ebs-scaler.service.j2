@@ -1,0 +1,21 @@
+[Unit]
+Description=EBS Volume Auto-scaler Service
+After=network.target
+Requires=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory={{ ebs_scaler_dir }}
+ExecStart={{ venv_path }}/bin/python {{ ebs_scaler_dir }}/{{ ebs_script }} --daemon
+Restart=always
+RestartSec=60
+StartLimitInterval=300
+StartLimitBurst=5
+StandardOutput=append:{{ ebs_scaler_dir }}/logs/scale.log
+StandardError=append:{{ ebs_scaler_dir }}/logs/scale.log
+
+[Install]
+WantedBy=multi-user.target

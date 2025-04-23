@@ -1,0 +1,14 @@
+interval: 600 # 10 minutes
+threshold: 80
+increase_type: size
+increase_gb: 150
+
+notification:
+  enabled: true
+  email-sender: bot@myorg.com
+  email-recipients:
+    - devops@myorg.com
+
+exclude:
+  volumes:
+    - ""

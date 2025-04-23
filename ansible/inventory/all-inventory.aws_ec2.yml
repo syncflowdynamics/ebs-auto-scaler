@@ -1,0 +1,17 @@
+plugin: amazon.aws.aws_ec2
+regions:
+  - eu-west-1
+hostnames:
+  - instance-id
+filters:
+  tag:userEnv: non-prod
+# Use keyed groups to target a specific instance by name from playbook if the filter matches multiple instances
+keyed_groups:
+  - key: tags.userService
+    prefix: "service"
+    separator: "_"
+compose:
+  ansible_aws_ssm_region: placement.region
+  ansible_connection: '"community.aws.aws_ssm"'
+  ansible_host: instance_id
+  ansible_aws_ssm_bucket_name: '"<s3_bucket_name>"'

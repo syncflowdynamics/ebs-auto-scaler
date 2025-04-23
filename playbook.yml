@@ -1,0 +1,98 @@
+---
+- name: Deploy EBS Volume Auto-scaler
+  hosts: 
+    - mongodb_non_prod
+  become: yes
+  vars:
+    ebs_scaler_dir: /opt/ebs-autoscaler
+    ebs_config_file: config.ini
+    ebs_script: ebs-scaler.py
+    venv_path: /opt/ebs-autoscaler/venv
+    
+  tasks:
+    - name: Install Python3 and pip3 for Debian
+      apt:
+        name:
+          - python3
+          - python3-pip
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Install Python3 and pip3 for RedHat/Amazon Linux
+      yum:
+        name:
+          - python3
+          - python3-pip
+        state: present
+      when: ansible_os_family == "RedHat" or ansible_distribution == "Amazon"
+
+    - name: Install required packages for Debian
+      apt:
+        name:
+          - util-linux
+          - xfsprogs
+          - e2fsprogs
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Install required packages for RedHat/Amazon Linux
+      yum:
+        name:
+          - util-linux
+          - cloud-utils-growpart
+          - xfsprogs
+          - e2fsprogs
+        state: present
+      when: ansible_os_family == "RedHat" or ansible_distribution == "Amazon"
+
+    - name: Create virtual environment
+      command: python3 -m venv {{ venv_path }}
+      args:
+        creates: "{{ venv_path }}"
+
+    - name: Install Python dependencies in virtualenv
+      pip:
+        name:
+          - boto3
+          - psutil
+          - typer
+        virtualenv: "{{ venv_path }}"
+        virtualenv_command: python3 -m venv
+        virtualenv_python: python3
+
+    - name: Create EBS scaler directory structure
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      with_items:
+        - "{{ ebs_scaler_dir }}"
+        - "{{ ebs_scaler_dir }}/logs"
+
+    - name: Copy EBS scaler script
+      copy:
+        src: "resources/{{ ebs_script }}"
+        dest: "{{ ebs_scaler_dir }}/{{ ebs_script }}"
+        mode: '0755'
+
+    - name: Copy configuration file
+      template:
+        src: "resources/{{ ebs_config_file }}"
+        dest: "{{ ebs_scaler_dir }}/{{ ebs_config_file }}"
+        mode: '0644'
+
+    - name: Create systemd service file
+      template:
+        src: resources/ebs-scaler.service.j2
+        dest: /etc/systemd/system/ebs-scaler.service
+        mode: '0644'
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable and start EBS scaler service
+      systemd:
+        name: ebs-scaler
+        state: started
+        enabled: yes
